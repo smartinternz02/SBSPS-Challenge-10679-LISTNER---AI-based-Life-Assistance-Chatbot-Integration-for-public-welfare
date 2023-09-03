@@ -1,0 +1,59 @@
+!pip install python-telegram-bot
+from flask import Flask, request, jsonify
+from textblob import TextBlob
+import openai
+app = Flask(__name__)
+from telegram.ext import Update, Bot
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+
+
+# Configure your OpenAI API key
+openai.api_key = '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'
+
+# Configure your Telegram Bot Token
+telegram_bot_token = '6619744938:AAFZHr7JKPS0W16hmzzubyQvdoiOLDKmfyo'
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text("Welcome to the ChatBot! How can I assist you today?")
+
+def chat(update: Update, context: CallbackContext):
+    user_message = update.message.text
+
+    # Perform sentiment analysis on the user's message
+    sentiment = TextBlob(user_message).sentiment
+
+    # Determine the appropriate response based on sentiment
+    if sentiment.polarity > 0.1:
+        response = "I'm glad to hear that you're feeling positive!"
+    elif sentiment.polarity < -0.1:
+        response = "I'm sorry to hear that you're feeling down. Can I help in any way?"
+    else:
+        response = "How can I assist you today?"
+
+    # Use OpenAI GPT-3 to generate a response based on the user's message
+    try:
+        gpt_response = openai.Completion.create(
+            engine="text-davinci-002",
+            prompt=user_message,
+            max_tokens=50
+        )
+        response += " " + gpt_response.choices[0].text
+    except Exception as e:
+        response += " I'm experiencing some technical difficulties. Please try again later."
+
+    update.message.reply_text(response)
+
+def main():
+    # Initialize the Telegram Updater
+    updater = Updater(token=telegram_bot_token, use_context=True)
+    dispatcher = updater.dispatcher
+
+    # Register command and message handlers
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, chat))
+
+    # Start the bot
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
